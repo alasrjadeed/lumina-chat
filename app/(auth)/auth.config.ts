@@ -9,6 +9,4 @@ export const authConfig = {
     signIn: `${base}/login`,
     newUser: `${base}/`,
   },
-  providers: [],
-  callbacks: {},
 } satisfies NextAuthConfig;
