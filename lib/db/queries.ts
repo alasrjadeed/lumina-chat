@@ -43,14 +43,36 @@ import {
 } from "./schema";
 import { generateHashedPassword } from "./utils";
 
-const postgresUrl = process.env.POSTGRES_URL;
-if (!postgresUrl) {
-  throw new Error(
-    "POSTGRES_URL environment variable is not set. Please configure it in your .env file."
-  );
+let _client: ReturnType<typeof postgres> | null = null;
+let _db: ReturnType<typeof drizzle> | null = null;
+
+function getDb() {
+  if (_db) {
+    return _db;
+  }
+
+  const postgresUrl = process.env.POSTGRES_URL;
+  if (!postgresUrl) {
+    throw new Error(
+      "POSTGRES_URL environment variable is not set. Please add it in your Vercel dashboard under Settings > Environment Variables."
+    );
+  }
+  _client = postgres(postgresUrl);
+  _db = drizzle(_client);
+  return _db;
 }
-const client = postgres(postgresUrl);
-const db = drizzle(client);
+
+// Lazy proxy: db.select() etc. work without top-level crash
+const db = new Proxy({} as ReturnType<typeof drizzle>, {
+  get(_target, prop) {
+    const instance = getDb();
+    const value = (instance as unknown as Record<string | symbol, unknown>)[prop];
+    if (typeof value === "function") {
+      return value.bind(instance);
+    }
+    return value;
+  },
+});
 
 export async function getUser(email: string): Promise<User[]> {
   try {
