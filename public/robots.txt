@@ -1,0 +1,73 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /chat/
+Disallow: /office/
+Disallow: /_next/
+
+# Google
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /chat/
+Disallow: /office/
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Disallow: /chat/
+Disallow: /office/
+
+# AI Search Engines — allow all for GEO optimization
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: Omgilibot
+Allow: /
+
+# SEO Crawlers
+User-agent: AhrefsBot
+Allow: /
+
+User-agent: SemrushBot
+Allow: /
+
+User-agent: DotBot
+Allow: /
+
+User-agent: MJ12bot
+Allow: /
+
+# Sitemap
+Sitemap: https://lumina-chat.vercel.app/sitemap.xml
+
+# Crawl-delay for polite bots
+Crawl-delay: 1
