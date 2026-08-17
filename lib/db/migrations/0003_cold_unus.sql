@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS "Account" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
 	"userId" uuid NOT NULL,
 	"type" varchar(64) NOT NULL,
 	"provider" varchar(64) NOT NULL,
