@@ -9,4 +9,6 @@ export const authConfig = {
     signIn: `${base}/login`,
     newUser: `${base}/`,
   },
+  providers: [] as any[],
+  callbacks: {},
 } satisfies NextAuthConfig;
