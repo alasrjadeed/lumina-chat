@@ -189,3 +189,70 @@ export function businessSummary(): string {
     `Payment terms: ${config.paymentTerms}`,
   ].join("\n");
 }
+
+export async function getBusinessConfigById(
+  businessId: string
+): Promise<BusinessConfig> {
+  const { getBusinessById, getServicesByBusinessId } = await import(
+    "@/lib/db/queries"
+  );
+
+  const biz = await getBusinessById(businessId);
+  if (!biz) {
+    return getBusinessConfig();
+  }
+
+  const services = await getServicesByBusinessId(businessId);
+
+  return {
+    businessName: biz.name,
+    tagline: biz.tagline || "",
+    description: biz.description || "",
+    contact: {
+      email: biz.email || "",
+      phone: biz.phone || "",
+      whatsapp: biz.whatsapp || biz.phone || "",
+      address: biz.address || "",
+      website: biz.website || "",
+    },
+    hours: {
+      open: biz.hoursOpen || "9:00",
+      close: biz.hoursClose || "18:00",
+      timezone: biz.timezone || "UTC",
+      days: biz.hoursDays || "Monday - Friday",
+    },
+    paymentTerms: biz.paymentTerms || "",
+    services: services.map((s) => ({
+      id: s.id,
+      name: s.name,
+      category: (s.category || "custom") as BusinessService["category"],
+      description: s.description || "",
+      price: s.price,
+      unit: s.unit,
+      durationMonths: s.durationMonths,
+    })),
+  };
+}
+
+export function businessSummaryFromConfig(config: BusinessConfig): string {
+  const serviceLines = config.services
+    .map(
+      (service) =>
+        `- ${service.name} (${service.id}): ${service.description} — ${formatPrice(service.price, service.unit)}`
+    )
+    .join("\n");
+
+  return [
+    `Business: ${config.businessName} — ${config.tagline}`,
+    config.description,
+    "",
+    `Contact: ${config.contact.email} | ${config.contact.phone} | ${config.contact.website}`,
+    `Address: ${config.contact.address}`,
+    `Hours: ${config.hours.days} ${config.hours.open} - ${config.hours.close} (${config.hours.timezone})`,
+    "",
+    "Services & pricing:",
+    serviceLines,
+    "",
+    `Payment terms: ${config.paymentTerms}`,
+  ].join("\n");
+}

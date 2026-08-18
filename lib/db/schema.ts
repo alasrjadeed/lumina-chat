@@ -2,6 +2,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import {
   boolean,
   foreignKey,
+  integer,
   json,
   pgTable,
   primaryKey,
@@ -164,6 +165,9 @@ export type Stream = InferSelectModel<typeof stream>;
 
 export const lead = pgTable("Lead", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
+  businessId: uuid("businessId").references(() => business.id, {
+    onDelete: "set null",
+  }),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   phone: varchar("phone", { length: 64 }),
@@ -191,6 +195,9 @@ export type Lead = InferSelectModel<typeof lead>;
 
 export const appointment = pgTable("Appointment", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
+  businessId: uuid("businessId").references(() => business.id, {
+    onDelete: "set null",
+  }),
   title: text("title").notNull(),
   clientName: text("clientName"),
   clientEmail: varchar("clientEmail", { length: 320 }),
@@ -215,6 +222,9 @@ export type Appointment = InferSelectModel<typeof appointment>;
 
 export const emailThread = pgTable("EmailThread", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
+  businessId: uuid("businessId").references(() => business.id, {
+    onDelete: "set null",
+  }),
   from: varchar("from", { length: 320 }),
   subject: text("subject").notNull(),
   lastMessageAt: timestamp("lastMessageAt").notNull().defaultNow(),
@@ -241,3 +251,97 @@ export const emailMessage = pgTable("EmailMessage", {
 });
 
 export type EmailMessage = InferSelectModel<typeof emailMessage>;
+
+// ============================================================
+// Multi-Business Tables
+// ============================================================
+
+export const business = pgTable("Business", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  name: text("name").notNull(),
+  slug: varchar("slug", { length: 128 }).notNull().unique(),
+  tagline: text("tagline"),
+  description: text("description"),
+  website: text("website"),
+  logoUrl: text("logoUrl"),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 64 }),
+  whatsapp: varchar("whatsapp", { length: 64 }),
+  address: text("address"),
+  timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
+  hoursOpen: varchar("hoursOpen", { length: 16 }),
+  hoursClose: varchar("hoursClose", { length: 16 }),
+  hoursDays: text("hoursDays"),
+  paymentTerms: text("paymentTerms"),
+  isActive: boolean("isActive").notNull().default(true),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type Business = InferSelectModel<typeof business>;
+
+export const businessService = pgTable("BusinessService", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  businessId: uuid("businessId")
+    .notNull()
+    .references(() => business.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  category: varchar("category", { length: 64 })
+    .notNull()
+    .default("custom"),
+  description: text("description"),
+  price: integer("price").notNull().default(0),
+  unit: varchar("unit", { length: 32 }).notNull().default("one-time"),
+  durationMonths: integer("durationMonths").notNull().default(1),
+  isActive: boolean("isActive").notNull().default(true),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type BusinessService = InferSelectModel<typeof businessService>;
+
+export const channel = pgTable("Channel", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  businessId: uuid("businessId")
+    .notNull()
+    .references(() => business.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 32 }).notNull(),
+  isEnabled: boolean("isEnabled").notNull().default(false),
+  config: json("config").notNull().default({}),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type Channel = InferSelectModel<typeof channel>;
+
+export const task = pgTable("Task", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  businessId: uuid("businessId")
+    .notNull()
+    .references(() => business.id, { onDelete: "cascade" }),
+  leadId: uuid("leadId").references(() => lead.id, {
+    onDelete: "set null",
+  }),
+  chatId: uuid("chatId").references(() => chat.id, {
+    onDelete: "set null",
+  }),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: varchar("status", {
+    enum: ["pending", "in_progress", "completed", "cancelled"],
+  })
+    .notNull()
+    .default("pending"),
+  priority: varchar("priority", {
+    enum: ["low", "medium", "high", "urgent"],
+  })
+    .notNull()
+    .default("medium"),
+  dueDate: timestamp("dueDate"),
+  completedAt: timestamp("completedAt"),
+  createdBy: varchar("createdBy", { length: 32 }).notNull().default("ai"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type Task = InferSelectModel<typeof task>;

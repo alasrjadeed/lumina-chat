@@ -35,6 +35,7 @@ export const postRequestBodySchema = z.object({
   mode: z
     .enum(["general", "architecture", "coding", "creative", "research"])
     .optional(),
+  businessId: z.string().uuid().optional(),
 });
 
 export type PostRequestBody = z.infer<typeof postRequestBodySchema>;

@@ -21,6 +21,11 @@ import {
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { getLanguageModel } from "@/lib/ai/providers";
 import { businessTools } from "@/lib/ai/tools/business";
+import { taskTools } from "@/lib/ai/tools/tasks";
+import {
+  businessSummaryFromConfig,
+  getBusinessConfigById,
+} from "@/lib/business/config";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { editDocument } from "@/lib/ai/tools/edit-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
@@ -74,6 +79,7 @@ export async function POST(request: Request) {
       selectedChatModel,
       selectedVisibilityType,
       mode,
+      businessId,
     } = requestBody;
 
     const [, session] = await Promise.all([
@@ -193,12 +199,22 @@ export async function POST(request: Request) {
 
     const modelMessages = await convertToModelMessages(uiMessages);
 
+    let businessSummary: string | undefined;
+    if (businessId) {
+      try {
+        const bizConfig = await getBusinessConfigById(businessId);
+        businessSummary = businessSummaryFromConfig(bizConfig);
+      } catch {
+        // use default
+      }
+    }
+
     const stream = createUIMessageStream({
       originalMessages: isToolApprovalFlow ? uiMessages : undefined,
       execute: async ({ writer: dataStream }) => {
         const result = streamText({
           model: getLanguageModel(chatModel),
-          system: systemPrompt({ requestHints, supportsTools, mode }),
+          system: systemPrompt({ requestHints, supportsTools, mode, businessSummary }),
           messages: modelMessages,
           stopWhen: stepCountIs(5),
           experimental_activeTools:
@@ -219,6 +235,10 @@ export async function POST(request: Request) {
                   "makePhoneCall",
                   "listEmailInbox",
                   "readEmailThread",
+                  "createTask",
+                  "completeTask",
+                  "listTasks",
+                  "updateTask",
                   "createDocument",
                   "editDocument",
                   "updateDocument",
@@ -235,6 +255,7 @@ export async function POST(request: Request) {
           tools: {
             getWeather,
             ...businessTools,
+            ...(businessId ? taskTools(businessId) : {}),
             createDocument: createDocument({
               session,
               dataStream,

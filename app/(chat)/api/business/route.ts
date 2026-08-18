@@ -1,35 +1,140 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
-import { getAppointments, getLeads } from "@/lib/db/queries";
+import {
+  createBusiness,
+  createChannel,
+  deleteBusiness,
+  getAllBusinesses,
+  getChannelsByBusinessId,
+} from "@/lib/db/queries";
 
-export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 128);
+}
 
-  const { searchParams } = new URL(request.url);
-  const type = searchParams.get("type") ?? "all";
-
+export async function GET() {
   try {
-    if (type === "leads") {
-      const leads = await getLeads({ limit: 200 });
-      return NextResponse.json({ leads });
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (type === "appointments") {
-      const appointments = await getAppointments();
-      return NextResponse.json({ appointments });
+    const businesses = await getAllBusinesses();
+
+    const allChannels: Awaited<ReturnType<typeof getChannelsByBusinessId>>[] =
+      [];
+    for (const b of businesses) {
+      const ch = await getChannelsByBusinessId(b.id);
+      allChannels.push(ch);
     }
 
-    const [leads, appointments] = await Promise.all([
-      getLeads({ limit: 200 }),
-      getAppointments(),
-    ]);
-
-    return NextResponse.json({ leads, appointments });
+    return NextResponse.json({
+      ok: true,
+      businesses,
+      channels: allChannels.flat(),
+    });
   } catch (error) {
-    console.error("Business data error:", error);
-    return NextResponse.json({ error: "Failed to load data" }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { name, services, ...rest } = body;
+
+    if (!name?.trim()) {
+      return NextResponse.json(
+        { error: "Business name is required" },
+        { status: 400 }
+      );
+    }
+
+    let slug = slugify(name);
+    const businesses = await getAllBusinesses();
+    const existingSlugs = businesses.map((b) => b.slug);
+    let counter = 1;
+    while (existingSlugs.includes(slug)) {
+      slug = `${slugify(name)}-${counter}`;
+      counter++;
+    }
+
+    const biz = await createBusiness({
+      name: name.trim(),
+      slug,
+      tagline: rest.tagline || null,
+      description: rest.description || null,
+      website: rest.website || null,
+      email: rest.email || null,
+      phone: rest.phone || null,
+      address: rest.address || null,
+      hoursOpen: rest.hoursOpen || null,
+      hoursClose: rest.hoursClose || null,
+      hoursDays: rest.hoursDays || null,
+      paymentTerms: rest.paymentTerms || null,
+    });
+
+    await createChannel({ businessId: biz.id, type: "email", config: {} });
+    await createChannel({ businessId: biz.id, type: "whatsapp", config: {} });
+    await createChannel({ businessId: biz.id, type: "twilio", config: {} });
+
+    if (Array.isArray(services)) {
+      const { createBusinessService } = await import("@/lib/db/queries");
+      for (const s of services) {
+        await createBusinessService({
+          businessId: biz.id,
+          name: s.name,
+          category: s.category || "custom",
+          description: s.description || "",
+          price: typeof s.price === "number" ? Math.round(s.price * 100) : 0,
+          unit: s.unit || "one-time",
+        });
+      }
+    }
+
+    return NextResponse.json({ ok: true, business: biz });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return NextResponse.json(
+        { error: "Business ID is required" },
+        { status: 400 }
+      );
+    }
+
+    await deleteBusiness(id);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed" },
+      { status: 500 }
+    );
   }
 }

@@ -23,6 +23,12 @@ import {
   type Appointment,
   account,
   appointment,
+  type Business,
+  business,
+  type BusinessService,
+  businessService,
+  type Channel,
+  channel,
   type Chat,
   chat,
   type DBMessage,
@@ -37,6 +43,8 @@ import {
   type Suggestion,
   stream,
   suggestion,
+  type Task,
+  task,
   type User,
   user,
   vote,
@@ -1075,4 +1083,271 @@ async function createOAuthUser(profile: {
     .returning({ id: user.id });
 
   return newUser.id;
+}
+
+// ============================================================
+// Business CRUD
+// ============================================================
+
+export async function createBusiness(data: {
+  name: string;
+  slug: string;
+  tagline?: string;
+  description?: string;
+  website?: string;
+  logoUrl?: string;
+  email?: string;
+  phone?: string;
+  whatsapp?: string;
+  address?: string;
+  timezone?: string;
+  hoursOpen?: string;
+  hoursClose?: string;
+  hoursDays?: string;
+  paymentTerms?: string;
+}): Promise<Business> {
+  const [row] = await db.insert(business).values(data).returning();
+  return row;
+}
+
+export async function getBusinessById(
+  id: string
+): Promise<Business | undefined> {
+  const [row] = await db.select().from(business).where(eq(business.id, id));
+  return row;
+}
+
+export async function getBusinessBySlug(
+  slug: string
+): Promise<Business | undefined> {
+  const [row] = await db
+    .select()
+    .from(business)
+    .where(eq(business.slug, slug));
+  return row;
+}
+
+export async function getAllBusinesses(): Promise<Business[]> {
+  return db
+    .select()
+    .from(business)
+    .where(eq(business.isActive, true))
+    .orderBy(asc(business.name));
+}
+
+export async function updateBusiness(
+  id: string,
+  data: Partial<Omit<Business, "id" | "createdAt" | "updatedAt">>
+): Promise<Business> {
+  const [row] = await db
+    .update(business)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(business.id, id))
+    .returning();
+  return row;
+}
+
+export async function deleteBusiness(id: string): Promise<void> {
+  await db.delete(business).where(eq(business.id, id));
+}
+
+// ============================================================
+// BusinessService CRUD
+// ============================================================
+
+export async function createBusinessService(data: {
+  businessId: string;
+  name: string;
+  category?: string;
+  description?: string;
+  price?: number;
+  unit?: string;
+  durationMonths?: number;
+}): Promise<BusinessService> {
+  const [row] = await db.insert(businessService).values(data).returning();
+  return row;
+}
+
+export async function getServicesByBusinessId(
+  businessId: string
+): Promise<BusinessService[]> {
+  return db
+    .select()
+    .from(businessService)
+    .where(
+      and(
+        eq(businessService.businessId, businessId),
+        eq(businessService.isActive, true)
+      )
+    )
+    .orderBy(asc(businessService.name));
+}
+
+export async function getBusinessServiceById(
+  id: string
+): Promise<BusinessService | undefined> {
+  const [row] = await db
+    .select()
+    .from(businessService)
+    .where(eq(businessService.id, id));
+  return row;
+}
+
+export async function updateBusinessService(
+  id: string,
+  data: Partial<Omit<BusinessService, "id" | "createdAt" | "updatedAt">>
+): Promise<BusinessService> {
+  const [row] = await db
+    .update(businessService)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(businessService.id, id))
+    .returning();
+  return row;
+}
+
+export async function deleteBusinessService(id: string): Promise<void> {
+  await db
+    .update(businessService)
+    .set({ isActive: false, updatedAt: new Date() })
+    .where(eq(businessService.id, id));
+}
+
+// ============================================================
+// Channel CRUD
+// ============================================================
+
+export async function createChannel(data: {
+  businessId: string;
+  type: string;
+  isEnabled?: boolean;
+  config?: Record<string, unknown>;
+}): Promise<Channel> {
+  const [row] = await db.insert(channel).values(data).returning();
+  return row;
+}
+
+export async function getChannelsByBusinessId(
+  businessId: string
+): Promise<Channel[]> {
+  return db
+    .select()
+    .from(channel)
+    .where(eq(channel.businessId, businessId))
+    .orderBy(asc(channel.type));
+}
+
+export async function getChannelById(id: string): Promise<Channel | undefined> {
+  const [row] = await db.select().from(channel).where(eq(channel.id, id));
+  return row;
+}
+
+export async function getChannelByType(
+  businessId: string,
+  type: string
+): Promise<Channel | undefined> {
+  const [row] = await db
+    .select()
+    .from(channel)
+    .where(
+      and(eq(channel.businessId, businessId), eq(channel.type, type))
+    );
+  return row;
+}
+
+export async function updateChannel(
+  id: string,
+  data: Partial<Omit<Channel, "id" | "createdAt" | "updatedAt">>
+): Promise<Channel> {
+  const [row] = await db
+    .update(channel)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(channel.id, id))
+    .returning();
+  return row;
+}
+
+export async function deleteChannel(id: string): Promise<void> {
+  await db.delete(channel).where(eq(channel.id, id));
+}
+
+// ============================================================
+// Task CRUD
+// ============================================================
+
+export async function createTask(data: {
+  businessId: string;
+  title: string;
+  description?: string;
+  leadId?: string;
+  chatId?: string;
+  priority?: string;
+  dueDate?: Date;
+  createdBy?: string;
+}): Promise<Task> {
+  const [row] = await db.insert(task).values(data).returning();
+  return row;
+}
+
+export async function getTasksByBusinessId(
+  businessId: string,
+  opts?: { status?: string; leadId?: string; limit?: number }
+): Promise<Task[]> {
+  const conditions = [eq(task.businessId, businessId)];
+  if (opts?.status) {
+    conditions.push(eq(task.status, opts.status));
+  }
+  if (opts?.leadId) {
+    conditions.push(eq(task.leadId, opts.leadId));
+  }
+
+  let query = db
+    .select()
+    .from(task)
+    .where(and(...conditions))
+    .orderBy(desc(task.createdAt));
+
+  if (opts?.limit) {
+    query = query.limit(opts.limit) as typeof query;
+  }
+
+  return query;
+}
+
+export async function getTaskById(id: string): Promise<Task | undefined> {
+  const [row] = await db.select().from(task).where(eq(task.id, id));
+  return row;
+}
+
+export async function updateTask(
+  id: string,
+  data: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>
+): Promise<Task> {
+  const [row] = await db
+    .update(task)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(task.id, id))
+    .returning();
+  return row;
+}
+
+export async function completeTask(id: string): Promise<Task> {
+  const [row] = await db
+    .update(task)
+    .set({
+      status: "completed",
+      completedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(task.id, id))
+    .returning();
+  return row;
+}
+
+export async function cancelTask(id: string): Promise<Task> {
+  const [row] = await db
+    .update(task)
+    .set({ status: "cancelled", updatedAt: new Date() })
+    .where(eq(task.id, id))
+    .returning();
+  return row;
 }

@@ -3,6 +3,7 @@
 import {
   BotIcon,
   BrainCircuitIcon,
+  BuildingIcon,
   CheckIcon,
   ChevronsUpDownIcon,
   FolderOpenIcon,
@@ -24,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { chatModels } from "@/lib/ai/models";
 import { cn } from "@/lib/utils";
+import { BusinessSettings } from "./business-settings";
 
 export type ChatMode =
   | "general"
@@ -251,7 +253,7 @@ export function SettingsPanel({
 }) {
   const { setTheme, resolvedTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<
-    "general" | "agent" | "mcp" | "skills"
+    "general" | "agent" | "mcp" | "skills" | "business"
   >("general");
 
   const updateSettings = (partial: Partial<SettingsData>) => {
@@ -278,6 +280,11 @@ export function SettingsPanel({
       id: "skills" as const,
       label: "Skills",
       icon: <BrainCircuitIcon className="size-3.5" />,
+    },
+    {
+      id: "business" as const,
+      label: "Businesses",
+      icon: <BuildingIcon className="size-3.5" />,
     },
   ];
 
@@ -645,6 +652,12 @@ export function SettingsPanel({
                 })}
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === "business" && (
+          <div className="flex flex-col gap-5">
+            <BusinessSettings />
           </div>
         )}
       </div>
