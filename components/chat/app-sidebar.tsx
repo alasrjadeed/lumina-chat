@@ -231,7 +231,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
           </SidebarGroup>
           <SidebarHistory user={user} />
         </SidebarContent>
-        <SidebarFooter className="border-t border-sidebar-border pt-2 pb-3">
+        <SidebarFooter className="mt-auto border-t border-sidebar-border pt-2 pb-3">
           {user && <SidebarUserNav user={user} />}
           <div className="flex items-center justify-center gap-1 pt-2 text-[11px] text-sidebar-foreground/40">
             Powered by{" "}

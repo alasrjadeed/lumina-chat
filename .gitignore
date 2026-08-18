@@ -34,3 +34,4 @@ workspace/
 SESSION_STATE.md
 session.md
 proxy.ts
+.env.vercel

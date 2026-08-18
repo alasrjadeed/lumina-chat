@@ -51,7 +51,9 @@ function remoteModel(modelId: string) {
   if (!remoteLlm) {
     return null;
   }
-  return remoteLlm(modelId);
+  // Strip prefix: "remote/deepseek-v4-flash" -> "deepseek-v4-flash"
+  const cleanId = modelId.replace(/^(remote|deepseek|openai)\//, "");
+  return remoteLlm(cleanId);
 }
 
 // --- Groq (free tier: 1K req/day, fast inference) ---
@@ -142,9 +144,22 @@ export function getLanguageModel(modelId: string) {
     if (local) {
       return local;
     }
-    throw new Error(
-      "Local LLM not configured. Set LOCAL_LLM_BASE_URL in .env.local"
-    );
+    // Fallback: try remote, then user LLM, then gateway
+    const remote = remoteModel(modelId);
+    if (remote) {
+      return remote;
+    }
+    const userModel = userLlmModel();
+    if (userModel) {
+      return userModel;
+    }
+    try {
+      return gateway.languageModel(modelId);
+    } catch {
+      throw new Error(
+        "Local LLM not configured and no fallback available. Set LOCAL_LLM_BASE_URL or REMOTE_LLM_API_KEY in .env.local"
+      );
+    }
   }
 
   if (

@@ -1,10 +1,10 @@
-export const DEFAULT_CHAT_MODEL = "local/qwen2.5:1.5b";
+export const DEFAULT_CHAT_MODEL = "remote/deepseek-v4-flash";
 
 export const titleModel = {
-  id: "qwen2.5:1.5b",
-  name: "Qwen 2.5 1.5B",
-  provider: "ollama",
-  description: "Fast local model for title generation",
+  id: "deepseek-v4-flash",
+  name: "DeepSeek V4 Flash",
+  provider: "deepseek",
+  description: "Fast remote model for title generation",
 };
 
 export type ModelCapabilities = {
