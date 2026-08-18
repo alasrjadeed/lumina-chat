@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { auth } from "@/app/(auth)/auth";
+import { generateText } from "ai";
 import { getLanguageModel } from "@/lib/ai/providers";
 
 export async function POST(request: Request) {
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     const response = await fetch(parsedUrl.toString(), {
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; LuminaBot/1.0; +https://lumina.chat)",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    $("script, style, noscript, nav, footer, header").remove();
+    $("script, style, noscript").remove();
 
     const bodyText = $("body")
       .text()
@@ -70,17 +71,12 @@ export async function POST(request: Request) {
     });
     const uniqueLinks = [...new Set(links)].slice(0, 30);
 
-    const images: string[] = [];
-    $('img[src]').each((_, el) => {
-      const src = $(el).attr("src");
-      if (src && src.startsWith("http")) {
-        images.push(src);
-      }
-    });
+    let extractedData: Record<string, unknown> | null = null;
 
-    const model = getLanguageModel("remote/deepseek-v4-flash");
+    try {
+      const model = getLanguageModel("remote/deepseek-v4-flash");
 
-    const extractionPrompt = `Extract business information from this website content. Return ONLY valid JSON with no markdown.
+      const extractionPrompt = `Extract business information from this website content. Return ONLY valid JSON with no markdown.
 
 Website URL: ${parsedUrl.toString()}
 Page Title: ${pageTitle}
@@ -101,7 +97,6 @@ Return this exact JSON structure:
   "email": "business email if found, null otherwise",
   "phone": "business phone if found, null otherwise",
   "address": "physical address if found, null otherwise",
-  "website": "${parsedUrl.toString()}",
   "hours": { "open": "9:00", "close": "18:00", "days": "Monday - Friday", "timezone": "UTC" },
   "services": [
     {
@@ -122,64 +117,111 @@ Rules:
 - Category must be one of: seo, web, social, marketing, custom
 - Return ONLY the JSON object, nothing else`;
 
-    const result = await model.doGenerate({
-      messages: [{ role: "user", content: extractionPrompt }],
-      maxTokens: 2000,
-    });
+      const { text } = await generateText({
+        model,
+        prompt: extractionPrompt,
+        maxTokens: 2000,
+      });
 
-    const text =
-      typeof result.text === "string"
-        ? result.text
-        : Array.isArray(result.text)
-          ? result.text.join("")
-          : "";
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return NextResponse.json(
-        { error: "Failed to extract business data" },
-        { status: 500 }
-      );
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        extractedData = JSON.parse(jsonMatch[0]);
+      }
+    } catch (aiError) {
+      console.error("AI extraction failed, using HTML fallback:", aiError);
     }
 
-    const extracted = JSON.parse(jsonMatch[0]);
+    if (!extractedData) {
+      const emailMatch = bodyText.match(
+        /[\w.+-]+@[\w-]+\.[\w.-]+/
+      );
+      const phoneMatch = bodyText.match(
+        /[\+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]{7,15}/
+      );
+      const addressEl = $('address').text().trim() ||
+        $('[class*="address"]').text().trim().slice(0, 200);
 
-    return NextResponse.json({
-      ok: true,
-      data: {
-        name: extracted.name || pageTitle || parsedUrl.hostname,
-        tagline: extracted.tagline || null,
-        description: extracted.description || metaDescription || null,
-        email: extracted.email || null,
-        phone: extracted.phone || null,
-        address: extracted.address || null,
-        website: parsedUrl.toString(),
-        hours: extracted.hours || {
+      const serviceTexts: string[] = [];
+      $('h2, h3, h4').each((_, el) => {
+        const t = $(el).text().trim();
+        if (t && t.length > 2 && t.length < 100) serviceTexts.push(t);
+      });
+      if (serviceTexts.length === 0) {
+        $('li, .service, [class*="service"]').each((_, el) => {
+          const t = $(el).text().trim().slice(0, 100);
+          if (t && t.length > 5) serviceTexts.push(t);
+        });
+      }
+
+      const services = serviceTexts.slice(0, 10).map((name) => ({
+        name,
+        category: "custom" as const,
+        description: "",
+        price: 0,
+        unit: "one-time",
+      }));
+
+      extractedData = {
+        name: pageTitle.replace(/[-|–—].*$/, "").trim() || parsedUrl.hostname,
+        tagline: null,
+        description: metaDescription || bodyText.slice(0, 300),
+        email: emailMatch ? emailMatch[0] : null,
+        phone: phoneMatch ? phoneMatch[0] : null,
+        address: addressEl || null,
+        hours: {
           open: "9:00",
           close: "18:00",
           days: "Monday - Friday",
           timezone: "UTC",
         },
-        services: Array.isArray(extracted.services)
-          ? extracted.services.map(
-              (s: {
-                name: string;
+        services,
+      };
+    }
+
+    return NextResponse.json({
+      ok: true,
+      data: {
+        name:
+          (extractedData.name as string) ||
+          pageTitle ||
+          parsedUrl.hostname,
+        tagline: (extractedData.tagline as string) || null,
+        description:
+          (extractedData.description as string) || metaDescription || null,
+        email: (extractedData.email as string) || null,
+        phone: (extractedData.phone as string) || null,
+        address: (extractedData.address as string) || null,
+        website: parsedUrl.toString(),
+        hours: extractedData.hours || {
+          open: "9:00",
+          close: "18:00",
+          days: "Monday - Friday",
+          timezone: "UTC",
+        },
+        services: Array.isArray(extractedData.services)
+          ? (
+              extractedData.services as Array<{
+                name?: string;
                 category?: string;
                 description?: string;
                 price?: number;
                 unit?: string;
-              }) => ({
-                name: s.name || "Service",
-                category: ["seo", "web", "social", "marketing", "custom"].includes(
-                  s.category || ""
-                )
-                  ? s.category
-                  : "custom",
-                description: s.description || "",
-                price: typeof s.price === "number" ? s.price : 0,
-                unit: s.unit || "one-time",
-              })
-            )
+              }>
+            ).map((s) => ({
+              name: s.name || "Service",
+              category: [
+                "seo",
+                "web",
+                "social",
+                "marketing",
+                "custom",
+              ].includes(s.category || "")
+                ? s.category
+                : "custom",
+              description: s.description || "",
+              price: typeof s.price === "number" ? s.price : 0,
+              unit: s.unit || "one-time",
+            }))
           : [],
       },
     });
