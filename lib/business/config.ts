@@ -30,16 +30,16 @@ export type BusinessConfig = {
 };
 
 export const defaultBusinessConfig: BusinessConfig = {
-  businessName: "MonkeyCode Digital",
+  businessName: "Lumina Chat",
   tagline: "We build, we rank, we grow.",
   description:
     "Full-service digital agency helping small and medium businesses grow online with SEO, custom websites, and social media marketing.",
   contact: {
-    email: "hello@monkeycode.digital",
+    email: "hello@luminachat.ai",
     phone: "+1 (555) 123-4567",
     whatsapp: "+1 (555) 123-4567",
     address: "123 Market Street, Suite 400, San Francisco, CA",
-    website: "https://monkeycode.digital",
+    website: "https://luminachat.ai",
   },
   hours: {
     open: "9:00",

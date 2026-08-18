@@ -231,17 +231,17 @@ export function AppSidebar({ user }: { user: User | undefined }) {
           </SidebarGroup>
           <SidebarHistory user={user} />
         </SidebarContent>
-        <SidebarFooter className="mt-auto border-t border-sidebar-border pt-2 pb-3">
+        <SidebarFooter className="border-t border-sidebar-border pt-2 pb-3">
           {user && <SidebarUserNav user={user} />}
-          <div className="flex items-center justify-center gap-1 pt-2 text-[11px] text-sidebar-foreground/40">
+          <div className="flex items-center justify-center gap-1 pt-2 text-xs text-sidebar-foreground/60">
             Powered by{" "}
             <a
-              className="font-medium underline-offset-4 hover:underline"
+              className="font-semibold underline-offset-4 hover:underline"
               href="https://alasarjadeed.com"
               rel="noopener noreferrer"
               target="_blank"
             >
-              AL ASAR JADEED
+              Lumina Chat
             </a>
           </div>
         </SidebarFooter>

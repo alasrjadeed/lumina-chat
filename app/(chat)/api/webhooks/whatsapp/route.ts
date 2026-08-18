@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
           await sendWhatsApp({
             to: from,
-            text: `Hi ${contact ?? "there"}! Thanks for reaching out to MonkeyCode Digital. Our office manager will get back to you shortly. In the meantime, feel free to ask about our SEO, web design, or social media services.`,
+            text: `Hi ${contact ?? "there"}! Thanks for reaching out to Lumina Chat. Our office manager will get back to you shortly. In the meantime, feel free to ask about our SEO, web design, or social media services.`,
           });
         }
       }
